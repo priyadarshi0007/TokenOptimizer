@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.egg-info/
+.smart_delegate_cache/
+.venv/
+venv/
+.smart-delegate/

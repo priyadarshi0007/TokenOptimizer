@@ -1,0 +1,64 @@
+# smart-delegate configuration
+# Copy to ~/.smart-delegate/config.yaml or ./.smart-delegate/config.yaml (project-local wins).
+
+# Which provider block below is active. Switch to "ollama" to keep code fully local.
+active_provider: ollama
+
+providers:
+  ollama:
+    kind: ollama
+    base_url: "http://localhost:11434"
+    model: "gemma2:9b"
+    timeout_seconds: 30
+    # Delegated tasks are grunt work (summarize/scaffold), not creative
+    # generation — low temperature keeps output consistent, which also
+    # makes cache hits more likely on near-duplicate inputs.
+    temperature: 0.2
+
+  gemini:
+    kind: gemini
+    # Read from env var, never hardcode.
+    api_key_env: "GOOGLE_API_KEY"
+    model: "gemini-1.5-flash"
+    timeout_seconds: 30
+    temperature: 0.2
+
+# --- Guardrails ---
+guardrails:
+  # Hard line-count threshold above which raw Read/cat/head/tail are blocked
+  # and delegation is required instead. Overridable per-session without
+  # editing this file via the SMART_DELEGATE_MIN_LINES env var (read by the
+  # hook and the CLI) — handy for temporarily loosening it on a one-off task.
+  max_raw_read_lines: 300
+
+  # Never route these paths to a worker model, regardless of size.
+  # Matched as case-insensitive substrings/glob fragments against the file path.
+  excluded_path_patterns:
+    - ".env"
+    - ".env."
+    - "*.pem"
+    - "*.key"
+    - "id_rsa"
+    - "id_ed25519"
+    - "*.pfx"
+    - "*.p12"
+    - "*credentials*"
+    - "*secret*"
+    - ".ssh/*"
+    - "*.crt"
+    - "*.cer"
+
+  # Secret-shaped patterns to redact from any payload before it leaves the machine.
+  secret_patterns:
+    - '(?i)api[_-]?key["\s:=]+[A-Za-z0-9_\-]{16,}'
+    - '(?i)aws_secret_access_key["\s:=]+[A-Za-z0-9/+=]{20,}'
+    - '(?i)authorization:\s*bearer\s+[A-Za-z0-9._\-]+'
+    - '-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]+?-----END [A-Z ]*PRIVATE KEY-----'
+    - '(?i)password["\s:=]+\S{6,}'
+
+# --- Cache ---
+cache:
+  enabled: true
+  # Relative to the invocation directory, or absolute.
+  directory: ".smart_delegate_cache"
+  ttl_seconds: 604800  # 7 days
